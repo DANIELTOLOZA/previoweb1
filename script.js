@@ -1,7 +1,6 @@
 // Constantes
 const API_BASE_URL = 'https://24a0dac0-2579-4138-985c-bec2df4bdfcc-00-3unzo70c406dl.riker.replit.dev';
 const LOGIN_URL = `${API_BASE_URL}/login`;
-const PASSWORD = '1234';
 
 // Verificar autenticación al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
@@ -11,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentPage === 'index.html' || currentPage === '') {
         console.log('Estamos en la página de login');
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user && user.login !== false) {
+        if (user && user.login === true) {
             console.log('Usuario ya autenticado, redirigiendo a notas');
             window.location.href = 'notas.html';
         }
@@ -23,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (currentPage === 'notas.html') {
         console.log('Estamos en la página de notas');
         const user = JSON.parse(localStorage.getItem('user'));
-        if (!user || user.login === false) {
+        if (!user || user.login !== true) {
             console.log('No hay usuario autenticado, redirigiendo a login');
             window.location.href = 'index.html';
             return;
@@ -47,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Mostrar información del usuario
 function displayUserInfo(user) {
-    if (!user || user.login === false) {
+    if (!user || user.login !== true) {
         console.error('Usuario no válido para mostrar información');
         return;
     }
@@ -69,18 +68,17 @@ async function handleLogin(event) {
     const errorMessage = document.getElementById('error-message');
     const loginBtn = document.querySelector('.login-btn');
     
-    console.log('Intentando login con código:', codigo);
+    console.log('Intentando login con código:', codigo, 'y contraseña:', password);
+    
+    // Validaciones básicas
+    if (!codigo || !password) {
+        showError('Por favor ingresa código y contraseña');
+        return;
+    }
     
     const originalText = loginBtn.innerHTML;
     loginBtn.innerHTML = '<div class="loading"></div>';
     loginBtn.disabled = true;
-    
-    if (password !== PASSWORD) {
-        showError('Credenciales no válidas');
-        loginBtn.innerHTML = originalText;
-        loginBtn.disabled = false;
-        return;
-    }
     
     try {
         const response = await fetch(LOGIN_URL, {
@@ -94,12 +92,25 @@ async function handleLogin(event) {
             })
         });
         
-        console.log('Respuesta login:', response.status);
+        console.log('Respuesta login - Status:', response.status);
+        
+        // Primero obtener el texto de la respuesta
+        const responseText = await response.text();
+        console.log('Respuesta completa:', responseText);
+        
+        let result;
+        try {
+            result = JSON.parse(responseText);
+            console.log('Resultado parseado:', result);
+        } catch (parseError) {
+            console.error('Error parseando JSON:', parseError);
+            showError('Error en la respuesta del servidor');
+            loginBtn.innerHTML = originalText;
+            loginBtn.disabled = false;
+            return;
+        }
         
         if (response.ok) {
-            const result = await response.json();
-            console.log('Resultado del login:', result);
-            
             // VERIFICAR SI EL LOGIN FUE EXITOSO
             if (result.login === true) {
                 // Guardar usuario en localStorage
@@ -112,16 +123,16 @@ async function handleLogin(event) {
                     window.location.href = 'notas.html';
                 }, 1000);
             } else {
-                // Login fallido
+                // Login fallido - mostrar mensaje específico de la API
                 console.error('Login fallido:', result.mensaje);
                 showError(result.mensaje || 'Credenciales no válidas');
                 loginBtn.innerHTML = originalText;
                 loginBtn.disabled = false;
             }
         } else {
-            const errorText = await response.text();
-            console.error('Error en login:', errorText);
-            showError('Error del servidor. Intente nuevamente.');
+            // Error HTTP
+            console.error('Error HTTP:', response.status, result);
+            showError(result.mensaje || `Error del servidor (${response.status})`);
             loginBtn.innerHTML = originalText;
             loginBtn.disabled = false;
         }
@@ -140,10 +151,9 @@ function showError(message) {
     errorMessage.style.display = 'flex';
     
     setTimeout(() => {
-        document.getElementById('codigo').value = '';
         document.getElementById('password').value = '';
         errorMessage.style.display = 'none';
-    }, 3000);
+    }, 4000);
 }
 
 // Cargar las notas del estudiante
