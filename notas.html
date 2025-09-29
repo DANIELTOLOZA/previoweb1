@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notas del Estudiante - UFPS</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+   <header class="dashboard-header">
+    <div class="login-header">
+    <div class="logo">
+        <img src="images/logo-ufps.png" alt="Logo UFPS" class="logo-image">
+            <h1>UFPS Notas</h1>
+        </div>
+    </div>
+    
+    <div class="header-right">
+        <div class="user-profile">
+            <div class="user-avatar">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div class="user-details">
+                <span class="user-name" id="user-name">Cargando...</span>
+                <span class="user-code" id="user-code">Código</span>
+            </div>
+        </div>
+        <button id="logout-btn" class="logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            Cerrar Sesión
+        </button>
+    </div>
+</header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <div class="welcome-section">
+                <h2>Bienvenido, <span id="welcome-name">Estudiante</span></h2>
+                <p>Consulta tus notas y promedio académico</p>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="total-asignaturas">0</span>
+                        <span class="stat-label">Asignaturas</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="promedio-general">0.00</span>
+                        <span class="stat-label">Promedio General</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-value" id="asignaturas-aprobadas">0</span>
+                        <span class="stat-label">Aprobadas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notas Table -->
+            <div class="table-section">
+                <div class="section-header">
+                    <h3>Detalle de Notas</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="search-input" placeholder="Buscar asignatura...">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="notas-table">
+                        <thead>
+                            <tr>
+                                <th class="asignatura-col">Asignatura</th>
+                                <th>Créditos</th>
+                                <th>P1</th>
+                                <th>P2</th>
+                                <th>P3</th>
+                                <th>EF</th>
+                                <th class="definitiva-col">Definitiva</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notas-body">
+                            <!-- Las notas se cargarán aquí dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <div class="summary-card">
+                        <div class="summary-header">
+                            <i class="fas fa-chart-line"></i>
+                            <h4>Resumen Académico</h4>
+                        </div>
+                        <div class="summary-content">
+                            <div class="summary-item">
+                                <span>Promedio Ponderado:</span>
+                                <span class="summary-value" id="promedio-ponderado">0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span>Total Créditos:</span>
+                                <span class="summary-value" id="total-creditos">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
