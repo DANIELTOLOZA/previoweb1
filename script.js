@@ -1,17 +1,21 @@
-// Constantes
+// Constantes - Usar URLs absolutas para GitHub Pages
 const API_BASE_URL = 'https://24a0dac0-2579-4138-985c-bec2df4bdfcc-00-3unzo70c406dl.riker.replit.dev';
 const LOGIN_URL = `${API_BASE_URL}/login`;
 
 // Verificar autenticación al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Página cargada - Verificando autenticación');
-    const currentPage = window.location.pathname.split('/').pop();
     
-    if (currentPage === 'index.html' || currentPage === '') {
+    // Obtener la página actual de forma segura
+    const currentPath = window.location.pathname;
+    const currentPage = currentPath.split('/').pop() || 'index.html';
+    
+    if (currentPage === 'index.html' || currentPage === '' || currentPath.endsWith('/')) {
         console.log('Estamos en la página de login');
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.login === true) {
             console.log('Usuario ya autenticado, redirigiendo a notas');
+            // Usar ruta relativa segura para GitHub Pages
             window.location.href = 'notas.html';
         }
         
@@ -24,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user || user.login !== true) {
             console.log('No hay usuario autenticado, redirigiendo a login');
+            // Usar ruta relativa segura para GitHub Pages
             window.location.href = 'index.html';
             return;
         }
@@ -43,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 });
+
 
 // Mostrar información del usuario
 function displayUserInfo(user) {
