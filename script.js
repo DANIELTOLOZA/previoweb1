@@ -5,41 +5,39 @@ const PASSWORD = '1234';
 
 // Verificar autenticación al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Página cargada - Verificando autenticación');
     const currentPage = window.location.pathname.split('/').pop();
     
     if (currentPage === 'index.html' || currentPage === '') {
-        // Si estamos en la página de login y el usuario ya está autenticado, redirigir a notas
+        console.log('Estamos en la página de login');
         const user = JSON.parse(localStorage.getItem('user'));
         if (user) {
+            console.log('Usuario ya autenticado, redirigiendo a notas');
             window.location.href = 'notas.html';
         }
         
-        // Configurar el formulario de login
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', handleLogin);
         }
     } else if (currentPage === 'notas.html') {
-        // Si estamos en la página de notas y el usuario no está autenticado, redirigir a login
+        console.log('Estamos en la página de notas');
         const user = JSON.parse(localStorage.getItem('user'));
         if (!user) {
+            console.log('No hay usuario autenticado, redirigiendo a login');
             window.location.href = 'index.html';
             return;
         }
         
-        // Mostrar información del usuario
+        console.log('Usuario autenticado:', user);
         displayUserInfo(user);
-        
-        // Cargar las notas
         loadNotas(user.codigo);
         
-        // Configurar el botón de cerrar sesión
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', handleLogout);
         }
         
-        // Configurar búsqueda
         const searchInput = document.getElementById('search-input');
         if (searchInput) {
             searchInput.addEventListener('input', handleSearch);
@@ -51,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function displayUserInfo(user) {
     document.getElementById('user-name').textContent = user.nombre;
     document.getElementById('user-code').textContent = user.codigo;
-    document.getElementById('welcome-name').textContent = user.nombre.split(' ')[0]; // Solo el primer nombre
+    document.getElementById('welcome-name').textContent = user.nombre.split(' ')[0];
 }
 
 // Manejar el envío del formulario de login
@@ -63,12 +61,12 @@ async function handleLogin(event) {
     const errorMessage = document.getElementById('error-message');
     const loginBtn = document.querySelector('.login-btn');
     
-    // Mostrar estado de carga
+    console.log('Intentando login con código:', codigo);
+    
     const originalText = loginBtn.innerHTML;
     loginBtn.innerHTML = '<div class="loading"></div>';
     loginBtn.disabled = true;
     
-    // Validar que la contraseña sea 1234
     if (password !== PASSWORD) {
         showError('Credenciales no válidas');
         loginBtn.innerHTML = originalText;
@@ -77,7 +75,6 @@ async function handleLogin(event) {
     }
     
     try {
-        // Realizar petición POST al servicio de login
         const response = await fetch(LOGIN_URL, {
             method: 'POST',
             headers: {
@@ -89,21 +86,23 @@ async function handleLogin(event) {
             })
         });
         
+        console.log('Respuesta login:', response.status);
+        
         if (response.ok) {
             const user = await response.json();
+            console.log('Usuario obtenido:', user);
             
-            // Guardar usuario en localStorage
             localStorage.setItem('user', JSON.stringify(user));
             
-            // Animación de éxito
             loginBtn.innerHTML = '<i class="fas fa-check"></i><span>¡Éxito!</span>';
             loginBtn.classList.add('success-animation');
             
-            // Redirigir después de un breve delay
             setTimeout(() => {
                 window.location.href = 'notas.html';
             }, 1000);
         } else {
+            const errorText = await response.text();
+            console.error('Error en login:', errorText);
             showError('Credenciales no válidas');
             loginBtn.innerHTML = originalText;
             loginBtn.disabled = false;
@@ -122,7 +121,6 @@ function showError(message) {
     errorMessage.querySelector('span').textContent = message;
     errorMessage.style.display = 'flex';
     
-    // Limpiar campos después de un tiempo
     setTimeout(() => {
         document.getElementById('codigo').value = '';
         document.getElementById('password').value = '';
@@ -132,25 +130,58 @@ function showError(message) {
 
 // Cargar las notas del estudiante
 async function loadNotas(codigo) {
+    console.log('Cargando notas para código:', codigo);
+    
     try {
-        console.log(`Cargando notas para código: ${codigo}`);
+        const notasUrl = `${API_BASE_URL}/students/${codigo}/notas`;
+        console.log('URL de notas:', notasUrl);
         
-        const response = await fetch(`${API_BASE_URL}/students/${codigo}/notas`);
-        console.log('Respuesta de la API:', response);
+        const response = await fetch(notasUrl);
+        console.log('Respuesta de notas - Status:', response.status, 'OK:', response.ok);
         
         if (response.ok) {
-            const notas = await response.json();
-            console.log('Datos de notas recibidos:', notas);
-            displayNotas(notas);
-            updateStats(notas);
+            const data = await response.json();
+            console.log('Datos completos recibidos de la API:', data);
+            
+            // EXTRAER LAS NOTAS DE LA ESTRUCTURA REAL DE LA API
+            const notas = extractNotasFromData(data);
+            console.log('Notas extraídas para mostrar:', notas);
+            
+            if (notas && notas.length > 0) {
+                displayNotas(notas);
+                updateStats(notas);
+            } else {
+                showNotasError('No se encontraron notas para este estudiante');
+            }
         } else {
-            console.error('Error al cargar las notas. Status:', response.status);
-            showNotasError('No se pudieron cargar las notas. Intente nuevamente.');
+            const errorText = await response.text();
+            console.error('Error HTTP:', response.status, errorText);
+            showNotasError(`Error ${response.status}: No se pudieron cargar las notas`);
         }
     } catch (error) {
         console.error('Error al cargar las notas:', error);
-        showNotasError('Error de conexión al cargar las notas.');
+        showNotasError('Error de conexión al cargar las notas: ' + error.message);
     }
+}
+
+// Función para extraer notas de la estructura real de la API
+function extractNotasFromData(data) {
+    console.log('=== EXTRACT NOTAS FROM DATA ===');
+    
+    // La API devuelve las notas en data.notas
+    if (data && data.notas && Array.isArray(data.notas)) {
+        console.log('✅ Notas encontradas en data.notas:', data.notas.length, 'elementos');
+        return data.notas;
+    }
+    
+    // Si no, buscar en otras propiedades posibles
+    if (Array.isArray(data)) {
+        console.log('Datos son un array directo con', data.length, 'elementos');
+        return data;
+    }
+    
+    console.log('❌ No se pudo extraer array de notas');
+    return [];
 }
 
 // Mostrar error en la página de notas
@@ -164,13 +195,26 @@ function showNotasError(message) {
             </td>
         </tr>
     `;
+    
+    resetStats();
+}
+
+// Resetear estadísticas
+function resetStats() {
+    document.getElementById('total-asignaturas').textContent = '0';
+    document.getElementById('promedio-general').textContent = '0.00';
+    document.getElementById('asignaturas-aprobadas').textContent = '0';
+    document.getElementById('promedio-ponderado').textContent = '0.00';
+    document.getElementById('total-creditos').textContent = '0';
 }
 
 // Mostrar las notas en la tabla
 function displayNotas(notas) {
     const notasBody = document.getElementById('notas-body');
     
-    // Verificar si las notas están vacías o no son un array
+    console.log('=== DISPLAY NOTAS ===');
+    console.log('Notas a mostrar:', notas);
+    
     if (!notas || !Array.isArray(notas) || notas.length === 0) {
         notasBody.innerHTML = `
             <tr>
@@ -180,6 +224,7 @@ function displayNotas(notas) {
                 </td>
             </tr>
         `;
+        resetStats();
         return;
     }
     
@@ -188,84 +233,116 @@ function displayNotas(notas) {
     let sumaPonderada = 0;
     let totalCreditos = 0;
     let asignaturasAprobadas = 0;
+    let hasValidNotas = false;
     
-    notas.forEach(asignatura => {
-        const definitiva = calcularDefinitiva(asignatura);
+    notas.forEach((asignatura, index) => {
+        console.log(`--- Procesando asignatura ${index}: ${asignatura.asignatura} ---`);
+        
+        // Extraer información básica
+        const nombreAsignatura = asignatura.asignatura;
+        const creditos = parseInt(asignatura.creditos) || 0;
+        
+        // EXTRAER NOTAS CON LOS NOMBRES CORRECTOS
+        // La API usa: n1, n2, n3, ex
+        const notasData = {
+            p1: parseFloat(asignatura.n1) || null,
+            p2: parseFloat(asignatura.n2) || null,
+            p3: parseFloat(asignatura.n3) || null,
+            ef: parseFloat(asignatura.ex) || null
+        };
+        
+        console.log('Notas extraídas:', notasData);
+        
+        const definitiva = calcularDefinitiva(notasData);
         const estado = definitiva >= 3.0 ? 'Aprobado' : 'Reprobado';
         const estadoClass = definitiva >= 3.0 ? 'status-aprobado' : 'status-reprobado';
         
         const row = document.createElement('tr');
         
         row.innerHTML = `
-            <td>${asignatura.asignatura || 'Sin nombre'}</td>
-            <td>${asignatura.creditos || 0}</td>
-            <td>${asignatura.p1 !== undefined ? asignatura.p1.toFixed(1) : 'N/A'}</td>
-            <td>${asignatura.p2 !== undefined ? asignatura.p2.toFixed(1) : 'N/A'}</td>
-            <td>${asignatura.p3 !== undefined ? asignatura.p3.toFixed(1) : 'N/A'}</td>
-            <td>${asignatura.ef !== undefined ? asignatura.ef.toFixed(1) : 'N/A'}</td>
-            <td class="definitiva-col">${definitiva.toFixed(2)}</td>
-            <td><span class="status-badge ${estadoClass}">${estado}</span></td>
+            <td>${nombreAsignatura}</td>
+            <td>${creditos}</td>
+            <td>${formatNota(notasData.p1)}</td>
+            <td>${formatNota(notasData.p2)}</td>
+            <td>${formatNota(notasData.p3)}</td>
+            <td>${formatNota(notasData.ef)}</td>
+            <td class="definitiva-col">${definitiva > 0 ? definitiva.toFixed(2) : 'N/A'}</td>
+            <td><span class="status-badge ${estadoClass}">${definitiva > 0 ? estado : 'Sin nota'}</span></td>
         `;
         
         notasBody.appendChild(row);
         
-        // Calcular promedio ponderado y estadísticas
-        const creditos = parseInt(asignatura.creditos) || 0;
-        sumaPonderada += definitiva * creditos;
-        totalCreditos += creditos;
-        
-        if (definitiva >= 3.0) {
-            asignaturasAprobadas++;
-        }
-    });
-    
-    // Mostrar promedio ponderado
-    const promedio = totalCreditos > 0 ? sumaPonderada / totalCreditos : 0;
-    document.getElementById('promedio-ponderado').textContent = promedio.toFixed(2);
-    document.getElementById('total-creditos').textContent = totalCreditos;
-    
-    // Actualizar estadísticas
-    updateStats(notas);
-}
-
-// Actualizar estadísticas
-function updateStats(notas) {
-    let sumaPonderada = 0;
-    let totalCreditos = 0;
-    let asignaturasAprobadas = 0;
-    
-    if (notas && Array.isArray(notas)) {
-        notas.forEach(asignatura => {
-            const definitiva = calcularDefinitiva(asignatura);
-            const creditos = parseInt(asignatura.creditos) || 0;
+        // Calcular estadísticas si hay notas válidas
+        if (definitiva > 0) {
+            hasValidNotas = true;
             sumaPonderada += definitiva * creditos;
             totalCreditos += creditos;
+            
             if (definitiva >= 3.0) {
                 asignaturasAprobadas++;
             }
-        });
-    }
+        }
+        
+        console.log(`Definitiva: ${definitiva.toFixed(2)}, Estado: ${estado}`);
+    });
     
-    const promedio = totalCreditos > 0 ? sumaPonderada / totalCreditos : 0;
-    
-    document.getElementById('total-asignaturas').textContent = notas ? notas.length : 0;
-    document.getElementById('promedio-general').textContent = promedio.toFixed(2);
-    document.getElementById('asignaturas-aprobadas').textContent = asignaturasAprobadas;
+    // Actualizar estadísticas
+    updateFinalStats(notas.length, asignaturasAprobadas, sumaPonderada, totalCreditos, hasValidNotas);
 }
 
-// Calcular la nota definitiva de una asignatura
-function calcularDefinitiva(asignatura) {
-    // Verificar que todas las notas existan
-    const p1 = asignatura.p1 !== undefined ? asignatura.p1 : 0;
-    const p2 = asignatura.p2 !== undefined ? asignatura.p2 : 0;
-    const p3 = asignatura.p3 !== undefined ? asignatura.p3 : 0;
-    const ef = asignatura.ef !== undefined ? asignatura.ef : 0;
+// Actualizar estadísticas finales
+function updateFinalStats(totalAsignaturas, asignaturasAprobadas, sumaPonderada, totalCreditos, hasValidNotas) {
+    if (hasValidNotas && totalCreditos > 0) {
+        const promedio = sumaPonderada / totalCreditos;
+        document.getElementById('promedio-ponderado').textContent = promedio.toFixed(2);
+        document.getElementById('total-creditos').textContent = totalCreditos;
+        document.getElementById('promedio-general').textContent = promedio.toFixed(2);
+    } else {
+        document.getElementById('promedio-ponderado').textContent = 'N/A';
+        document.getElementById('total-creditos').textContent = '0';
+        document.getElementById('promedio-general').textContent = 'N/A';
+    }
     
-    // Calcular promedio simple de las 4 notas
-    const suma = p1 + p2 + p3 + ef;
-    const cantidadNotas = [p1, p2, p3, ef].filter(nota => nota !== 0).length;
+    document.getElementById('total-asignaturas').textContent = totalAsignaturas;
+    document.getElementById('asignaturas-aprobadas').textContent = asignaturasAprobadas;
     
-    return cantidadNotas > 0 ? suma / cantidadNotas : 0;
+    console.log('=== ESTADÍSTICAS FINALES ===');
+    console.log('Total asignaturas:', totalAsignaturas);
+    console.log('Asignaturas aprobadas:', asignaturasAprobadas);
+    console.log('Promedio ponderado:', hasValidNotas ? (sumaPonderada / totalCreditos).toFixed(2) : 'N/A');
+    console.log('Total créditos:', totalCreditos);
+}
+
+// Formatear nota para mostrar
+function formatNota(nota) {
+    if (nota === null || nota === undefined) return 'N/A';
+    if (nota === 0) return '0.0';
+    return nota.toFixed(1);
+}
+
+// Calcular la nota definitiva
+function calcularDefinitiva(notasData) {
+    const { p1, p2, p3, ef } = notasData;
+    
+    console.log('Calculando definitiva con:', notasData);
+    
+    // Filtrar notas válidas (no null y mayores a 0)
+    const notasValidas = [p1, p2, p3, ef].filter(nota => 
+        nota !== null && nota !== undefined && nota > 0
+    );
+    
+    console.log('Notas válidas para cálculo:', notasValidas);
+    
+    if (notasValidas.length === 0) {
+        return 0;
+    }
+    
+    // Calcular promedio simple de las notas disponibles
+    const suma = notasValidas.reduce((total, nota) => total + nota, 0);
+    const promedio = suma / notasValidas.length;
+    
+    console.log('Definitiva calculada:', promedio);
+    return promedio;
 }
 
 // Manejar búsqueda
@@ -285,34 +362,13 @@ function handleSearch(event) {
 
 // Manejar cierre de sesión
 function handleLogout() {
-    // Mostrar confirmación
     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        // Eliminar usuario del localStorage
         localStorage.removeItem('user');
-        
-        // Redirigir a la página de login
         window.location.href = 'index.html';
     }
 }
 
-// Función para probar la API (útil para debugging)
-async function testAPI() {
-    try {
-        console.log('Probando conexión con la API...');
-        
-        // Probar endpoint de estudiantes
-        const testResponse = await fetch(`${API_BASE_URL}/students`);
-        console.log('Test estudiantes:', testResponse);
-        
-        if (testResponse.ok) {
-            const students = await testResponse.json();
-            console.log('Estudiantes disponibles:', students);
-        }
-        
-    } catch (error) {
-        console.error('Error en test API:', error);
-    }
+// Función auxiliar
+function updateStats(notas) {
+    console.log('Stats actualizadas');
 }
-
-// Ejecutar test al cargar (solo en desarrollo)
-// testAPI();
