@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentPage === 'index.html' || currentPage === '') {
         console.log('Estamos en la página de login');
         const user = JSON.parse(localStorage.getItem('user'));
-        if (user) {
+        if (user && user.login !== false) {
             console.log('Usuario ya autenticado, redirigiendo a notas');
             window.location.href = 'notas.html';
         }
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     } else if (currentPage === 'notas.html') {
         console.log('Estamos en la página de notas');
         const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) {
+        if (!user || user.login === false) {
             console.log('No hay usuario autenticado, redirigiendo a login');
             window.location.href = 'index.html';
             return;
@@ -47,9 +47,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Mostrar información del usuario
 function displayUserInfo(user) {
-    document.getElementById('user-name').textContent = user.nombre;
-    document.getElementById('user-code').textContent = user.codigo;
-    document.getElementById('welcome-name').textContent = user.nombre.split(' ')[0];
+    if (!user || user.login === false) {
+        console.error('Usuario no válido para mostrar información');
+        return;
+    }
+    
+    document.getElementById('user-name').textContent = user.nombre || 'Usuario';
+    document.getElementById('user-code').textContent = user.codigo || 'N/A';
+    
+    // Usar nombre seguro para el saludo
+    const welcomeName = user.nombre ? user.nombre.split(' ')[0] : 'Estudiante';
+    document.getElementById('welcome-name').textContent = welcomeName;
 }
 
 // Manejar el envío del formulario de login
@@ -89,21 +97,31 @@ async function handleLogin(event) {
         console.log('Respuesta login:', response.status);
         
         if (response.ok) {
-            const user = await response.json();
-            console.log('Usuario obtenido:', user);
+            const result = await response.json();
+            console.log('Resultado del login:', result);
             
-            localStorage.setItem('user', JSON.stringify(user));
-            
-            loginBtn.innerHTML = '<i class="fas fa-check"></i><span>¡Éxito!</span>';
-            loginBtn.classList.add('success-animation');
-            
-            setTimeout(() => {
-                window.location.href = 'notas.html';
-            }, 1000);
+            // VERIFICAR SI EL LOGIN FUE EXITOSO
+            if (result.login === true) {
+                // Guardar usuario en localStorage
+                localStorage.setItem('user', JSON.stringify(result));
+                
+                loginBtn.innerHTML = '<i class="fas fa-check"></i><span>¡Éxito!</span>';
+                loginBtn.classList.add('success-animation');
+                
+                setTimeout(() => {
+                    window.location.href = 'notas.html';
+                }, 1000);
+            } else {
+                // Login fallido
+                console.error('Login fallido:', result.mensaje);
+                showError(result.mensaje || 'Credenciales no válidas');
+                loginBtn.innerHTML = originalText;
+                loginBtn.disabled = false;
+            }
         } else {
             const errorText = await response.text();
             console.error('Error en login:', errorText);
-            showError('Credenciales no válidas');
+            showError('Error del servidor. Intente nuevamente.');
             loginBtn.innerHTML = originalText;
             loginBtn.disabled = false;
         }
@@ -142,6 +160,12 @@ async function loadNotas(codigo) {
         if (response.ok) {
             const data = await response.json();
             console.log('Datos completos recibidos de la API:', data);
+            
+            // VERIFICAR SI LA CONSULTA DE NOTAS FUE EXITOSA
+            if (data.login === false) {
+                showNotasError(data.mensaje || 'No se pudieron cargar las notas');
+                return;
+            }
             
             // EXTRAER LAS NOTAS DE LA ESTRUCTURA REAL DE LA API
             const notas = extractNotasFromData(data);
